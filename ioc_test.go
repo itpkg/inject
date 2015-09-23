@@ -23,7 +23,7 @@ type Model struct {
 func TestInjector(t *testing.T) {
 	inj := ioc.New()
 
-	wrt, _ := syslog.New(syslog.LOG_DEBUG, "itpkg")
+	wrt, _ := syslog.New(syslog.LOG_DEBUG, "test")
 	now := time.Now()
 	inj.Provide(
 		&ioc.Object{Value: &Model{}},
