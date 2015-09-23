@@ -7,12 +7,13 @@ import (
 	"reflect"
 )
 
+var beans []*Object
+
 type Injector struct {
-	values []*Object
 }
 
-func (p *Injector) GetByName(name string) interface{} {
-	for _, o := range p.values {
+func GetByName(name string) interface{} {
+	for _, o := range beans {
 		if o.Name == name {
 			return o.Value
 		}
@@ -20,8 +21,8 @@ func (p *Injector) GetByName(name string) interface{} {
 	return nil
 }
 
-func (p *Injector) GetByType(rty reflect.Type) interface{} {
-	for _, o := range p.values {
+func GetByType(rty reflect.Type) interface{} {
+	for _, o := range beans {
 		if o.Name == "" && o.Type == rty {
 			return o.Value
 		}
@@ -29,25 +30,25 @@ func (p *Injector) GetByType(rty reflect.Type) interface{} {
 	return nil
 }
 
-func (p *Injector) Provide(objects ...*Object) {
+func Provide(objects ...*Object) {
 	for _, o := range objects {
 		o.Type = reflect.TypeOf(o.Value)
 	}
-	p.values = append(p.values, objects...)
+	beans = append(beans, objects...)
 }
 
-func (p *Injector) String() string {
+func String() string {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "ID\tNAME\t\tTYPE\t\tVALUE\n")
-	for i, o := range p.values {
+	for i, o := range beans {
 		fmt.Fprintf(&buf, "%04d: %s\t\t%v\t\t%v\n", i, o.Name, o.Type, o.Value)
 	}
 	return buf.String()
 }
 
-func (p *Injector) Populate() error {
-	for _, o := range p.values {
-		if o.Type != nil && p.isStruct(o.Type) {
+func Populate() error {
+	for _, o := range beans {
+		if o.Type != nil && isStruct(o.Type) {
 			el := reflect.ValueOf(o.Value).Elem()
 			for i := 0; i < el.NumField(); i++ {
 				fd := el.Field(i)
@@ -59,15 +60,15 @@ func (p *Injector) Populate() error {
 				if !fd.CanSet() {
 					return errors.New(fmt.Sprintf("inject requested on unexported field %s in type %v", tag.Name, o.Type))
 				}
-				if !p.isNilOrZero(fd) {
+				if !isNilOrZero(fd) {
 					continue
 				}
 
 				var val interface{}
 				if name := tag.Tag.Get("inject"); name == "" {
-					val = p.GetByType(fd.Type())
+					val = GetByType(fd.Type())
 				} else {
-					val = p.GetByName(name)
+					val = GetByName(name)
 				}
 				if val == nil {
 					return errors.New(fmt.Sprintf("%s is null", tag.Tag))
@@ -81,11 +82,11 @@ func (p *Injector) Populate() error {
 	return nil
 }
 
-func (*Injector) isStruct(t reflect.Type) bool {
+func isStruct(t reflect.Type) bool {
 	return t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct
 }
 
-func (*Injector) isNilOrZero(v reflect.Value) bool {
+func isNilOrZero(v reflect.Value) bool {
 	switch v.Kind() {
 	case reflect.Interface, reflect.Ptr:
 		return v.IsNil()
@@ -94,7 +95,7 @@ func (*Injector) isNilOrZero(v reflect.Value) bool {
 	}
 }
 
-func (p *Injector) Run(handler interface{}, args ...interface{}) ([]interface{}, error) {
+func Run(handler interface{}, args ...interface{}) ([]interface{}, error) {
 	rty := reflect.TypeOf(handler)
 	if rty.Kind() != reflect.Func {
 		return nil, errors.New("Handler must be a callable func.")
@@ -102,7 +103,7 @@ func (p *Injector) Run(handler interface{}, args ...interface{}) ([]interface{},
 	ins := make([]reflect.Value, 0)
 	for i := 0; i < rty.NumIn(); i++ {
 		ty := rty.In(i)
-		val := p.GetByType(ty)
+		val := GetByType(ty)
 		if val == nil {
 			for _, arg := range args {
 				if reflect.TypeOf(arg) == ty {
@@ -125,6 +126,6 @@ func (p *Injector) Run(handler interface{}, args ...interface{}) ([]interface{},
 }
 
 //-----------------------------------------------------------------------------
-func New() *Injector {
-	return &Injector{values: make([]*Object, 0)}
+func init() {
+	beans = make([]*Object, 0)
 }

@@ -16,17 +16,16 @@ func Hello(mod *Model, logger *syslog.Writer, version string) string {
 }
 
 type Model struct {
-	Fuck time.Time
+	Fuck    time.Time
 	Now     *time.Time `inject:""`
 	Version int        `inject:"version"`
 }
 
 func TestInjector(t *testing.T) {
-	inj := ioc.New()
 
 	wrt, _ := syslog.New(syslog.LOG_DEBUG, "test")
 	now := time.Now()
-	inj.Provide(
+	ioc.Provide(
 		&ioc.Object{Value: &Model{}},
 		&ioc.Object{Value: wrt},
 		&ioc.Object{Value: &now},
@@ -35,13 +34,13 @@ func TestInjector(t *testing.T) {
 		&ioc.Object{Name: "hello", Value: "Hello, it-package!"},
 	)
 
-	if err := inj.Populate(); err == nil {
-		t.Logf(inj.String())
+	if err := ioc.Populate(); err == nil {
+		t.Logf(ioc.String())
 	} else {
 		t.Errorf("error on populate: %v", err)
 	}
 
-	if vls, err := inj.Run(Hello, "v20150923"); err == nil {
+	if vls, err := ioc.Run(Hello, "v20150923"); err == nil {
 		t.Logf(vls[0].(string))
 	} else {
 		t.Errorf("error on run: %v", err)
