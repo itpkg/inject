@@ -16,6 +16,7 @@ func Hello(mod *Model, logger *syslog.Writer, version string) string {
 }
 
 type Model struct {
+	Fuck time.Time
 	Now     *time.Time `inject:""`
 	Version int        `inject:"version"`
 }
